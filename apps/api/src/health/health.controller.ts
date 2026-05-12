@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { access, mkdir, writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
@@ -31,6 +31,10 @@ export class HealthController {
 
   @Get('db')
   async getDatabaseHealth(): Promise<HealthResponse> {
+    if (!this.config.get<string>('DATABASE_URL')) {
+      throw new ServiceUnavailableException('DATABASE_URL is not configured.');
+    }
+
     await this.prisma.$queryRaw`SELECT 1`;
 
     return {
