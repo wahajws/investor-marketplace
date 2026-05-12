@@ -29,7 +29,7 @@ function getApiBaseUrl() {
   if (!env.apiBaseUrl) {
     throw new ApiClientError({
       code: 'API_NOT_CONFIGURED',
-      message: 'Production API URL is not configured. Set VITE_API_BASE_URL in Vercel to your deployed API URL.'
+      message: 'API URL is not configured.'
     });
   }
 

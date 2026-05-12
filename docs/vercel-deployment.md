@@ -1,12 +1,13 @@
 # Vercel Deployment Guide
 
-This repository is ready for Vercel frontend deployment and a separate production API host.
+This repository is ready for Vercel deployment with the React/Vite frontend and a NestJS API exposed through Vercel serverless functions.
 
 ## Recommended Architecture
 
 - Vercel hosts the React/Vite frontend from `apps/web`.
-- The NestJS API in `apps/api` runs on a Node server platform such as Railway, Render, Fly.io, AWS, DigitalOcean, or a VPS.
-- MySQL, Redis, SMTP, uploaded document storage, and Alibaba DashScope/Qwen secrets belong to the API environment, not the Vercel frontend environment.
+- Vercel exposes the NestJS API through `/api/*` serverless functions.
+- MySQL must be hosted externally, for example PlanetScale, Railway, Aiven, AWS RDS, DigitalOcean, or another managed MySQL provider.
+- Redis, SMTP, uploaded document storage, and Alibaba DashScope/Qwen are optional integrations for the first production deploy.
 
 ## Vercel Project Settings
 
@@ -31,47 +32,34 @@ Important: do not press **Redeploy** on an old failed deployment. Vercel redeplo
 
 ## Vercel Environment Variables
 
-Set only frontend-safe variables in Vercel before deploying. Vite bakes `VITE_` values into the browser bundle at build time, so add or change these values and then trigger a new deployment:
+Set these values in Vercel before deploying:
 
 ```text
-VITE_API_BASE_URL=https://api.your-domain.com/api/v1
+DATABASE_URL=mysql://USER:PASSWORD@HOST:3306/vc_platform
+APP_FRONTEND_URL=https://your-vercel-domain.vercel.app
+JWT_ACCESS_SECRET=at_least_32_random_characters
+JWT_REFRESH_SECRET=at_least_32_random_characters
 VITE_APP_NAME=VC Intelligence
 VITE_APP_REGION=Malaysia and Southeast Asia
 ```
 
-`VITE_API_BASE_URL` is required for production builds. If it is missing, the frontend will fail fast instead of calling `localhost:4000`, because `localhost` in a deployed browser points to the visitor's computer, not the backend API.
+`VITE_API_BASE_URL` is optional for the Vercel deployment. If it is not set, the frontend calls the same deployment at `/api/v1`.
 
-Do not add `DATABASE_URL`, `ALIBABA_API_KEY`, JWT secrets, SMTP credentials, Redis credentials, or storage paths to Vercel unless you later convert the API to a serverless deployment.
+Optional backend integrations:
 
-## API Host Environment Variables
-
-Use `.env.production.example` as the API host checklist. Required production values include:
-
-```text
-NODE_ENV=production
-DATABASE_URL=mysql://USER:PASSWORD@HOST:3306/vc_platform
-REDIS_HOST=HOST
-APP_FRONTEND_URL=https://your-vercel-domain.com
-STORAGE_PATH=/absolute/persistent/storage/path
-JWT_ACCESS_SECRET=at_least_32_random_characters
-JWT_REFRESH_SECRET=at_least_32_random_characters
-ALIBABA_API_KEY=your_dashscope_key
-SMTP_HOST=smtp.example.com
-SMTP_USER=your_smtp_user
-SMTP_PASS=your_smtp_password
-EMAIL_FROM=no-reply@your-domain.com
-```
+- `ALIBABA_API_KEY`
+- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
 
 ## Migration-Safe Production Release
 
-For production, never use Prisma `db push`. Use migration deploy only.
+For production, never use Prisma `db push`. Use migration deploy only against the external production MySQL database.
 
-On the API host, after setting `DATABASE_URL` and before starting the public API process:
+After setting `DATABASE_URL` locally or in a trusted CI environment:
 
 ```bash
 npm install
 npm run db:deploy
-npm run build -w apps/api
 ```
 
 For a brand-new production database, seed once only if you need the bootstrap admin/demo data:
@@ -93,11 +81,8 @@ npm run prod:check
 Then verify the production API:
 
 ```text
-GET https://api.your-domain.com/api/v1/health
-GET https://api.your-domain.com/api/v1/health/db
-GET https://api.your-domain.com/api/v1/health/redis
-GET https://api.your-domain.com/api/v1/health/storage
-GET https://api.your-domain.com/api/v1/health/ai
+GET https://your-vercel-domain.vercel.app/api/v1/health
+GET https://your-vercel-domain.vercel.app/api/v1/health/db
 ```
 
-All health checks should be healthy. The AI health endpoint should confirm Qwen is configured.
+The base health endpoint confirms the serverless API boots. The database health endpoint confirms auth can reach MySQL.

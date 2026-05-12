@@ -9,7 +9,7 @@ function getApiBaseUrl() {
     return 'http://localhost:4000/api/v1';
   }
 
-  return null;
+  return '/api/v1';
 }
 
 const apiBaseUrl = getApiBaseUrl();
