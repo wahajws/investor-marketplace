@@ -3,6 +3,9 @@ import { CurrentUser, AuthenticatedUser } from '../../common/decorators/current-
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DomainService } from '../domain.service';
+import { pickFields, requireFields } from '../payload';
+
+const editableOrganizationFields = ['name', 'type', 'country', 'city', 'website', 'description'] as const;
 
 @UseGuards(JwtAuthGuard)
 @Controller('organizations')
@@ -11,6 +14,7 @@ export class OrganizationsController {
 
   @Post()
   async create(@CurrentUser() user: AuthenticatedUser, @Body() body: any) {
+    requireFields(body, ['name']);
     const organization = await this.prisma.organization.create({
       data: {
         name: body.name,
@@ -36,7 +40,7 @@ export class OrganizationsController {
   @Patch(':organizationId')
   async update(@CurrentUser() user: AuthenticatedUser, @Param('organizationId') organizationId: string, @Body() body: any) {
     await this.domain.assertOrganizationAccess(user, organizationId);
-    const organization = await this.prisma.organization.update({ where: { id: organizationId }, data: body });
+    const organization = await this.prisma.organization.update({ where: { id: organizationId }, data: pickFields(body, editableOrganizationFields) });
     await this.domain.audit(user.id, 'organization.update', 'Organization', organizationId);
     return organization;
   }

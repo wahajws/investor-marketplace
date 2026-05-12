@@ -3,6 +3,21 @@ import { CurrentUser, AuthenticatedUser } from '../../common/decorators/current-
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DomainService } from '../domain.service';
+import { pickFields } from '../payload';
+
+const editableInvestorProfileFields = ['organizationId', 'fullName', 'phone', 'country', 'city', 'linkedinUrl', 'title', 'bio'] as const;
+const editableInvestorPreferenceFields = [
+  'thesis',
+  'sectors',
+  'stages',
+  'geographies',
+  'excludedSectors',
+  'minTicketSize',
+  'maxTicketSize',
+  'revenueRequirement',
+  'riskPreference',
+  'leadPreference'
+] as const;
 
 @UseGuards(JwtAuthGuard)
 @Controller('investor')
@@ -17,10 +32,11 @@ export class InvestorController {
   @Put('profile')
   async upsertProfile(@CurrentUser() user: AuthenticatedUser, @Body() body: any) {
     const organizationId = body.organizationId ?? (await this.domain.getPrimaryOrganizationId(user.id));
+    const data = { ...pickFields(body, editableInvestorProfileFields), organizationId };
     return this.prisma.investorProfile.upsert({
       where: { userId: user.id },
-      update: { ...body, organizationId },
-      create: { ...body, organizationId, userId: user.id }
+      update: data,
+      create: { ...data, userId: user.id }
     });
   }
 
@@ -38,6 +54,7 @@ export class InvestorController {
 
   @Put('preferences')
   async upsertPreferences(@CurrentUser() user: AuthenticatedUser, @Body() body: any) {
+    const data = pickFields(body, editableInvestorPreferenceFields);
     const profile = await this.prisma.investorProfile.upsert({
       where: { userId: user.id },
       update: {},
@@ -45,8 +62,8 @@ export class InvestorController {
     });
     return this.prisma.investorPreference.upsert({
       where: { investorProfileId: profile.id },
-      update: body,
-      create: { ...body, investorProfileId: profile.id, organizationId: profile.organizationId }
+      update: data,
+      create: { ...data, investorProfileId: profile.id, organizationId: profile.organizationId }
     });
   }
 

@@ -3,6 +3,49 @@ import { CurrentUser, AuthenticatedUser } from '../../common/decorators/current-
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DomainService } from '../domain.service';
+import { pickFields, requireFields } from '../payload';
+
+const editableCompanyFields = [
+  'name',
+  'registrationNumber',
+  'country',
+  'city',
+  'sector',
+  'businessModel',
+  'stage',
+  'website',
+  'description',
+  'problem',
+  'solution',
+  'targetCustomers'
+] as const;
+
+const editableMetricFields = [
+  'customerCount',
+  'payingCustomerCount',
+  'monthlyActiveUsers',
+  'monthlyRecurringRevenue',
+  'annualRecurringRevenue',
+  'annualRevenue',
+  'revenueGrowthRate',
+  'churnRate',
+  'grossMargin',
+  'burnRate',
+  'runwayMonths',
+  'currency'
+] as const;
+
+const editableFundraisingFields = [
+  'amountRaising',
+  'claimedValuation',
+  'currency',
+  'instrument',
+  'previousFunding',
+  'useOfFunds',
+  'currentInvestors'
+] as const;
+
+const editableTeamFields = ['name', 'role', 'email', 'ownership', 'bio'] as const;
 
 @UseGuards(JwtAuthGuard)
 @Controller('companies')
@@ -11,6 +54,7 @@ export class CompaniesController {
 
   @Post()
   async create(@CurrentUser() user: AuthenticatedUser, @Body() body: any) {
+    requireFields(body, ['name']);
     const company = await this.prisma.company.create({
       data: {
         name: body.name,
@@ -52,7 +96,7 @@ export class CompaniesController {
   @Patch(':companyId')
   async update(@CurrentUser() user: AuthenticatedUser, @Param('companyId') companyId: string, @Body() body: any) {
     await this.domain.assertCompanyAccess(user, companyId, 'write');
-    return this.prisma.company.update({ where: { id: companyId }, data: body });
+    return this.prisma.company.update({ where: { id: companyId }, data: pickFields(body, editableCompanyFields) });
   }
 
   @Post(':companyId/submit')
@@ -76,13 +120,14 @@ export class CompaniesController {
   @Post(':companyId/team')
   async addTeam(@CurrentUser() user: AuthenticatedUser, @Param('companyId') companyId: string, @Body() body: any) {
     await this.domain.assertCompanyAccess(user, companyId, 'write');
-    return this.prisma.companyMember.create({ data: { companyId, name: body.name, role: body.role, email: body.email, ownership: body.ownership, bio: body.bio } });
+    requireFields(body, ['name']);
+    return this.prisma.companyMember.create({ data: { companyId, ...pickFields(body, editableTeamFields), name: body.name } });
   }
 
   @Patch(':companyId/team/:memberId')
   async updateTeam(@CurrentUser() user: AuthenticatedUser, @Param('companyId') companyId: string, @Param('memberId') memberId: string, @Body() body: any) {
     await this.domain.assertCompanyAccess(user, companyId, 'write');
-    return this.prisma.companyMember.update({ where: { id: memberId }, data: body });
+    return this.prisma.companyMember.update({ where: { id: memberId }, data: pickFields(body, editableTeamFields) });
   }
 
   @Delete(':companyId/team/:memberId')
@@ -101,7 +146,8 @@ export class CompaniesController {
   @Put(':companyId/metrics')
   async upsertMetrics(@CurrentUser() user: AuthenticatedUser, @Param('companyId') companyId: string, @Body() body: any) {
     await this.domain.assertCompanyAccess(user, companyId, 'write');
-    return this.prisma.companyMetric.upsert({ where: { companyId }, update: body, create: { ...body, companyId } });
+    const data = pickFields(body, editableMetricFields);
+    return this.prisma.companyMetric.upsert({ where: { companyId }, update: data, create: { ...data, companyId } });
   }
 
   @Patch(':companyId/metrics')
@@ -118,7 +164,8 @@ export class CompaniesController {
   @Put(':companyId/fundraising')
   async upsertFundraising(@CurrentUser() user: AuthenticatedUser, @Param('companyId') companyId: string, @Body() body: any) {
     await this.domain.assertCompanyAccess(user, companyId, 'write');
-    return this.prisma.fundraisingRound.upsert({ where: { companyId }, update: body, create: { ...body, companyId } });
+    const data = pickFields(body, editableFundraisingFields);
+    return this.prisma.fundraisingRound.upsert({ where: { companyId }, update: data, create: { ...data, companyId } });
   }
 
   @Patch(':companyId/fundraising')

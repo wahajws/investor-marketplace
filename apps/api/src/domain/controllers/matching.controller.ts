@@ -14,13 +14,13 @@ export class MatchingController {
   @Post('matches/refresh')
   async refresh(@CurrentUser() user: AuthenticatedUser) {
     const organizationId = await this.domain.getPrimaryOrganizationId(user.id);
-    return this.domain.refreshMatches(undefined, organizationId ?? undefined);
+    return this.domain.refreshMatches(undefined, organizationId ?? undefined, user.id);
   }
 
   @Post('companies/:companyId/matches/refresh')
   async refreshCompany(@CurrentUser() user: AuthenticatedUser, @Param('companyId') companyId: string) {
     await this.domain.assertCompanyAccess(user, companyId, 'read');
-    return this.domain.refreshMatches(companyId);
+    return this.domain.refreshMatches(companyId, undefined, user.id);
   }
 
   @Get('companies/:companyId/matched-investors')
@@ -30,12 +30,21 @@ export class MatchingController {
   }
 
   @Get('matches/:matchId')
-  match(@Param('matchId') matchId: string) {
-    return this.prisma.match.findUniqueOrThrow({ where: { id: matchId }, include: { company: true, organization: true } });
+  async match(@CurrentUser() user: AuthenticatedUser, @Param('matchId') matchId: string) {
+    const match = await this.prisma.match.findUniqueOrThrow({ where: { id: matchId }, include: { company: true, organization: true } });
+    if (this.domain.isAdmin(user)) return match;
+    if (user.roles.includes('INVESTOR')) await this.domain.assertOrganizationAccess(user, match.organizationId);
+    else await this.domain.assertCompanyAccess(user, match.companyId, 'read');
+    return match;
   }
 
   @Patch('matches/:matchId/status')
-  update(@Param('matchId') matchId: string, @Body() body: any) {
+  async update(@CurrentUser() user: AuthenticatedUser, @Param('matchId') matchId: string, @Body() body: any) {
+    const match = await this.prisma.match.findUniqueOrThrow({ where: { id: matchId } });
+    if (this.domain.isAdmin(user)) {
+      return this.prisma.match.update({ where: { id: matchId }, data: { status: body.status } });
+    }
+    await this.domain.assertOrganizationAccess(user, match.organizationId);
     return this.prisma.match.update({ where: { id: matchId }, data: { status: body.status } });
   }
 

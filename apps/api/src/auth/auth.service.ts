@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes, createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 import { UsersService } from '../users/users.service';
 import { PasswordService } from './password.service';
 
@@ -25,7 +26,8 @@ export class AuthService {
     private readonly users: UsersService,
     private readonly passwords: PasswordService,
     private readonly jwt: JwtService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    private readonly email: EmailService
   ) {}
 
   async register(input: { email: string; password: string; role: 'FOUNDER' | 'INVESTOR' }) {
@@ -54,12 +56,30 @@ export class AuthService {
       include: { roles: { include: { role: true } } }
     });
 
-    return this.issueAuthResponse({
+    const verificationToken = this.createOpaqueToken();
+    await this.prisma.emailVerificationToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: this.hashToken(verificationToken),
+        expiresAt: this.daysFromNow(3)
+      }
+    });
+    await this.email.sendMail({
+      to: user.email,
+      subject: 'Verify your Investor Marketplace account',
+      text: `Verify your account: ${this.config.get<string>('APP_FRONTEND_URL')}/verify-email?token=${verificationToken}`
+    });
+
+    const response = await this.issueAuthResponse({
       id: user.id,
       email: user.email,
       status: user.status,
       roles: user.roles.map((entry) => entry.role.name)
     });
+    if (this.config.get<string>('NODE_ENV', 'development') !== 'production') {
+      return { ...response, developmentVerificationToken: verificationToken };
+    }
+    return response;
   }
 
   async login(input: { email: string; password: string }) {
@@ -158,10 +178,15 @@ export class AuthService {
       }
     });
 
-    return {
-      success: true,
-      developmentToken: token
-    };
+    await this.email.sendMail({
+      to: user.email,
+      subject: 'Reset your Investor Marketplace password',
+      text: `Reset your password: ${this.config.get<string>('APP_FRONTEND_URL')}/reset-password?token=${token}`
+    });
+
+    return this.config.get<string>('NODE_ENV', 'development') === 'production'
+      ? { success: true }
+      : { success: true, developmentToken: token };
   }
 
   async resetPassword(token: string, newPassword: string) {

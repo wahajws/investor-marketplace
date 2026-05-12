@@ -13,17 +13,29 @@
     "dev:web": "npm run dev -w apps/web",
     "build": "npm run build -w apps/api && npm run build -w apps/web",
     "test": "npm run test -w apps/api && npm run test -w apps/web",
-    "lint": "npm run lint -w apps/api && npm run lint -w apps/web"
+    "lint": "npm run lint -w apps/api && npm run lint -w apps/web",
+    "prod:check": "npm run lint && npm run test && npm run build && npm audit --omit=dev",
+    "vercel:build": "npm run build -w apps/web",
+    "db:deploy": "npm run prisma:deploy -w apps/api && npm run prisma:generate -w apps/api",
+    "seed": "npm run prisma:seed -w apps/api"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "@types/nodemailer": "^8.0.0",
+    "concurrently": "^9.1.2",
+    "globals": "^17.6.0",
+    "typescript-eslint": "^8.59.3"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "@nestjs/jwt": "^11.0.2",
+    "@nestjs/throttler": "^6.5.0",
     "@types/multer": "^2.1.0",
-    "multer": "^2.1.1"
+    "mammoth": "^1.12.0",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.7",
+    "pdf-parse": "^2.4.5",
+    "read-excel-file": "^9.0.9"
   }
 }

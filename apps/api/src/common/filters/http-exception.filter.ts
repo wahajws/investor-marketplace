@@ -63,6 +63,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
         return 'NOT_FOUND';
       case HttpStatus.CONFLICT:
         return 'CONFLICT';
+      case HttpStatus.BAD_GATEWAY:
+        return 'AI_PROVIDER_ERROR';
+      case HttpStatus.SERVICE_UNAVAILABLE:
+        return 'SERVICE_UNAVAILABLE';
       default:
         return 'INTERNAL_ERROR';
     }

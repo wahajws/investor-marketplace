@@ -7,9 +7,6 @@ import { LoginPage } from '../pages/auth/LoginPage';
 import { RegisterPage } from '../pages/auth/RegisterPage';
 import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage';
 import { VerifyEmailPage } from '../pages/auth/VerifyEmailPage';
-import { AdminDashboardPage } from '../pages/dashboard/AdminDashboardPage';
-import { FounderDashboardPage } from '../pages/dashboard/FounderDashboardPage';
-import { InvestorDashboardPage } from '../pages/dashboard/InvestorDashboardPage';
 import {
   AdminAiRunsPage,
   AdminAuditPage,
@@ -40,6 +37,7 @@ import {
   RequestsPage
 } from '../pages/mvp/MvpPages';
 import { PublicHomePage } from '../pages/public/PublicHomePage';
+import { LegalPage } from '../pages/public/LegalPage';
 import { AdminResourcePage, FounderResourcePage, InvestorResourcePage } from '../pages/shared/RouteFactory';
 
 export const router = createBrowserRouter([
@@ -54,6 +52,14 @@ export const router = createBrowserRouter([
   {
     path: '/register',
     element: <RegisterPage />
+  },
+  {
+    path: '/terms',
+    element: <LegalPage type="terms" />
+  },
+  {
+    path: '/privacy',
+    element: <LegalPage type="privacy" />
   },
   {
     path: '/forgot-password',

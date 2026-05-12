@@ -1,4 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { access, mkdir, writeFile, unlink } from 'fs/promises';
+import { join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisHealthService } from './redis-health.service';
 
@@ -13,7 +16,8 @@ type HealthResponse = {
 export class HealthController {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly redisHealth: RedisHealthService
+    private readonly redisHealth: RedisHealthService,
+    private readonly config: ConfigService
   ) {}
 
   @Get()
@@ -45,6 +49,37 @@ export class HealthController {
       service: 'redis',
       timestamp: new Date().toISOString(),
       details
+    };
+  }
+
+  @Get('storage')
+  async getStorageHealth(): Promise<HealthResponse> {
+    const storagePath = this.config.get<string>('STORAGE_PATH', join(process.cwd(), 'storage'));
+    await mkdir(storagePath, { recursive: true });
+    await access(storagePath);
+    const probe = join(storagePath, `.health-${Date.now()}.txt`);
+    await writeFile(probe, 'ok');
+    await unlink(probe);
+    return {
+      status: 'ok',
+      service: 'storage',
+      timestamp: new Date().toISOString(),
+      details: { storagePath }
+    };
+  }
+
+  @Get('ai')
+  getAiHealth(): HealthResponse {
+    const configured = Boolean(this.config.get<string>('ALIBABA_API_KEY'));
+    return {
+      status: configured ? 'ok' : 'error',
+      service: 'alibaba-qwen',
+      timestamp: new Date().toISOString(),
+      details: {
+        configured,
+        model: this.config.get<string>('ALIBABA_MODEL', 'qwen-plus'),
+        baseUrl: this.config.get<string>('ALIBABA_API_BASE_URL', 'https://dashscope-intl.aliyuncs.com')
+      }
     };
   }
 }

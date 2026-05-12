@@ -5,6 +5,13 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DomainService } from '../domain.service';
+import { parseJsonSetting, requireEnum } from '../payload';
+
+const userStatuses = ['PENDING', 'ACTIVE', 'SUSPENDED', 'DEACTIVATED'] as const;
+const organizationStatuses = ['PENDING', 'ACTIVE', 'SUSPENDED', 'REJECTED'] as const;
+const companyStatuses = ['DRAFT', 'SUBMITTED', 'ADMIN_REVIEW', 'APPROVED', 'REJECTED', 'HIDDEN', 'ARCHIVED'] as const;
+const visibilityStatuses = ['PRIVATE', 'INVESTORS', 'PUBLIC'] as const;
+const roleNames = ['ADMIN', 'FOUNDER', 'INVESTOR'] as const;
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
@@ -60,15 +67,16 @@ export class AdminController {
 
   @Patch('users/:userId/status')
   async userStatus(@CurrentUser() user: AuthenticatedUser, @Param('userId') userId: string, @Body() body: any) {
-    const updated = await this.prisma.user.update({ where: { id: userId }, data: { status: body.status } });
+    const status = requireEnum(body.status, userStatuses, 'User status');
+    const updated = await this.prisma.user.update({ where: { id: userId }, data: { status } });
     await this.domain.audit(user.id, 'admin.user.status', 'User', userId, body);
     return updated;
   }
 
   @Patch('users/:userId/roles')
   async userRoles(@CurrentUser() user: AuthenticatedUser, @Param('userId') userId: string, @Body() body: any) {
-    const roleNames = Array.isArray(body.roles) ? body.roles : [];
-    const roles = await this.prisma.role.findMany({ where: { name: { in: roleNames } } });
+    const requestedRoleNames = Array.isArray(body.roles) ? body.roles.map((role: unknown) => requireEnum(role, roleNames, 'Role')) : [];
+    const roles = await this.prisma.role.findMany({ where: { name: { in: requestedRoleNames } } });
     await this.prisma.userRole.deleteMany({ where: { userId } });
     await this.prisma.userRole.createMany({ data: roles.map((role) => ({ userId, roleId: role.id })) });
     await this.domain.audit(user.id, 'admin.user.roles', 'User', userId, body);
@@ -89,7 +97,8 @@ export class AdminController {
 
   @Patch('organizations/:organizationId/status')
   async organizationStatus(@CurrentUser() user: AuthenticatedUser, @Param('organizationId') organizationId: string, @Body() body: any) {
-    const updated = await this.prisma.organization.update({ where: { id: organizationId }, data: { status: body.status } });
+    const status = requireEnum(body.status, organizationStatuses, 'Organization status');
+    const updated = await this.prisma.organization.update({ where: { id: organizationId }, data: { status } });
     await this.domain.audit(user.id, 'admin.organization.status', 'Organization', organizationId, body);
     return updated;
   }
@@ -109,9 +118,10 @@ export class AdminController {
 
   @Patch('companies/:companyId/status')
   async companyStatus(@CurrentUser() user: AuthenticatedUser, @Param('companyId') companyId: string, @Body() body: any) {
+    const status = requireEnum(body.status, companyStatuses, 'Company status');
     const updated = await this.prisma.company.update({
       where: { id: companyId },
-      data: { status: body.status, reviewedAt: new Date(), reviewNote: body.reviewNote }
+      data: { status, reviewedAt: new Date(), reviewNote: body.reviewNote }
     });
     await this.domain.audit(user.id, 'admin.company.status', 'Company', companyId, body);
     return updated;
@@ -119,7 +129,8 @@ export class AdminController {
 
   @Patch('companies/:companyId/visibility')
   async companyVisibility(@CurrentUser() user: AuthenticatedUser, @Param('companyId') companyId: string, @Body() body: any) {
-    const updated = await this.prisma.company.update({ where: { id: companyId }, data: { visibility: body.visibility } });
+    const visibility = requireEnum(body.visibility, visibilityStatuses, 'Visibility');
+    const updated = await this.prisma.company.update({ where: { id: companyId }, data: { visibility } });
     await this.domain.audit(user.id, 'admin.company.visibility', 'Company', companyId, body);
     return updated;
   }
@@ -131,7 +142,8 @@ export class AdminController {
 
   @Patch('settings/:key')
   setting(@Param('key') key: string, @Body() body: any) {
-    return this.prisma.platformSetting.upsert({ where: { key }, update: { valueJson: body.value ?? body }, create: { key, valueJson: body.value ?? body } });
+    const valueJson = parseJsonSetting(body.valueJson ?? body.value ?? body);
+    return this.prisma.platformSetting.upsert({ where: { key }, update: { valueJson }, create: { key, valueJson } });
   }
 
   @Get('settings/:type')

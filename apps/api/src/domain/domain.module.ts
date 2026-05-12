@@ -12,6 +12,7 @@ import { OrganizationsController } from './controllers/organizations.controller'
 import { PipelineController } from './controllers/pipeline.controller';
 import { RequestsController } from './controllers/requests.controller';
 import { NotificationsController } from './controllers/notifications.controller';
+import { DocumentTextService } from './document-text.service';
 import { DomainService } from './domain.service';
 import { LlmService } from './llm.service';
 
@@ -30,6 +31,6 @@ import { LlmService } from './llm.service';
     RequestsController,
     NotificationsController
   ],
-  providers: [DomainService, LlmService]
+  providers: [DocumentTextService, DomainService, LlmService]
 })
 export class DomainModule {}

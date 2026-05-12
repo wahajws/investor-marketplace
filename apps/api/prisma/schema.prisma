@@ -380,6 +380,7 @@ model Document {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   extractions DocumentExtraction[]
   accessGrants DocumentAccessGrant[]
+  claimEvidence ClaimEvidence[]
 }
 
 model DocumentAccessGrant {
@@ -420,6 +421,23 @@ model Claim {
   updatedAt          DateTime    @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  evidence ClaimEvidence[]
+}
+
+model ClaimEvidence {
+  id         String   @id @default(cuid())
+  claimId    String
+  documentId String?
+  sourceType String
+  sourceText String   @db.Text
+  confidence Decimal? @db.Decimal(5, 2)
+  createdAt  DateTime @default(now())
+
+  claim    Claim     @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([claimId])
+  @@index([documentId])
 }
 
 model RedFlag {
@@ -599,4 +617,20 @@ model LlmRun {
   @@index([userId])
   @@index([companyId])
   @@index([documentId])
+}
+
+model AiEmbedding {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  task       String
+  contentHash String
+  vectorJson Json?
+  summary    String?  @db.Text
+  model      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([entityType, entityId])
+  @@unique([entityType, entityId, task])
 }

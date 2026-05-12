@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadGatewayException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -17,12 +17,28 @@ export class LlmService {
   constructor(private readonly config: ConfigService, private readonly prisma: PrismaService) {}
 
   async runJson(input: RunInput) {
+    return this.runJsonInternal(input, false);
+  }
+
+  async runRequiredJson(input: RunInput) {
+    return this.runJsonInternal(input, true);
+  }
+
+  isConfigured() {
+    return Boolean(this.getApiKey());
+  }
+
+  private async runJsonInternal(input: RunInput, required: boolean) {
     const apiKey = this.config.get<string>('ALIBABA_API_KEY') || this.config.get<string>('VITE_ALIBABA_API_KEY');
     const baseUrl = this.config.get<string>('ALIBABA_API_BASE_URL', 'https://dashscope-intl.aliyuncs.com');
     const model = this.config.get<string>('ALIBABA_MODEL', 'qwen-plus');
     const promptJson = { system: input.system, user: input.user };
 
     if (!apiKey) {
+      if (required) {
+        await this.logRun(input, model, promptJson, { error: 'ALIBABA_API_KEY is not configured.' }, 'FAILED', 'ALIBABA_API_KEY is not configured.');
+        throw new ServiceUnavailableException('Alibaba Qwen is not configured. Set ALIBABA_API_KEY in apps/api/.env and restart the API.');
+      }
       return this.logRun(input, model, promptJson, input.fallback, 'FALLBACK');
     }
 
@@ -47,16 +63,38 @@ export class LlmService {
       if (!response.ok) {
         const text = await response.text();
         await this.logRun(input, model, promptJson, { fallback: input.fallback }, 'FAILED', text);
+        if (required) throw new BadGatewayException(`Alibaba Qwen request failed: ${text.slice(0, 300)}`);
         return input.fallback;
       }
 
       const payload = await response.json();
       const content = payload?.choices?.[0]?.message?.content;
-      const parsed = typeof content === 'string' ? JSON.parse(content) : input.fallback;
+      const parsed = typeof content === 'string' ? this.parseJsonContent(content) : input.fallback;
       return this.logRun(input, model, promptJson, parsed, 'COMPLETE');
     } catch (error) {
       await this.logRun(input, model, promptJson, { fallback: input.fallback }, 'FAILED', error instanceof Error ? error.message : String(error));
+      if (required) {
+        if (error instanceof ServiceUnavailableException || error instanceof BadGatewayException) throw error;
+        throw new BadGatewayException(error instanceof Error ? error.message : 'Alibaba Qwen request failed.');
+      }
       return input.fallback;
+    }
+  }
+
+  private getApiKey() {
+    return this.config.get<string>('ALIBABA_API_KEY') || this.config.get<string>('VITE_ALIBABA_API_KEY');
+  }
+
+  private parseJsonContent(content: string) {
+    try {
+      return JSON.parse(content);
+    } catch {
+      const start = content.indexOf('{');
+      const end = content.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        return JSON.parse(content.slice(start, end + 1));
+      }
+      throw new Error('Alibaba Qwen returned non-JSON content.');
     }
   }
 

@@ -11,12 +11,17 @@ export function RegisterPage() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Exclude<UserRole, 'ADMIN'>>('FOUNDER');
   const [password, setPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError('');
+    if (!acceptedTerms) {
+      setError('Please accept the Terms of Use and Privacy Policy.');
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -42,6 +47,12 @@ export function RegisterPage() {
             <option value="INVESTOR">Investor</option>
           </select>
           <input className="w-full rounded-md border border-[#d5cbbb] bg-[#fbfaf6] px-3 py-2 text-sm text-slate-950 outline-none focus:border-[#8b6f2f]" onChange={(e) => setPassword(e.target.value)} placeholder="Password" required type="password" value={password} />
+          <label className="flex items-start gap-3 rounded-md border border-[#ded4c4] bg-[#fbfaf6] p-3 text-sm text-slate-700">
+            <input className="mt-1" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} type="checkbox" />
+            <span>
+              I agree to the <Link className="font-medium text-[#173b34]" to="/terms">Terms of Use</Link> and <Link className="font-medium text-[#173b34]" to="/privacy">Privacy Policy</Link>.
+            </span>
+          </label>
           {error ? <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
           <button className="w-full rounded-md bg-[#173b34] px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#102c27] disabled:opacity-60" disabled={isSubmitting} type="submit">
             {isSubmitting ? 'Creating account...' : 'Register'}

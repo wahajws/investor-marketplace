@@ -2,6 +2,19 @@ import { Body, Controller, Get, Patch, Put, UseGuards } from '@nestjs/common';
 import { CurrentUser, AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
+import { pickFields } from '../payload';
+
+const editableFounderProfileFields = [
+  'fullName',
+  'phone',
+  'country',
+  'city',
+  'linkedinUrl',
+  'role',
+  'biography',
+  'experience',
+  'education'
+] as const;
 
 @UseGuards(JwtAuthGuard)
 @Controller('founder')
@@ -15,10 +28,11 @@ export class FounderController {
 
   @Put('profile')
   upsertProfile(@CurrentUser() user: AuthenticatedUser, @Body() body: any) {
+    const data = pickFields(body, editableFounderProfileFields);
     return this.prisma.founderProfile.upsert({
       where: { userId: user.id },
-      update: body,
-      create: { ...body, userId: user.id }
+      update: data,
+      create: { ...data, userId: user.id }
     });
   }
 

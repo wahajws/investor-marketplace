@@ -3,6 +3,9 @@ import { CurrentUser, AuthenticatedUser } from '../../common/decorators/current-
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DomainService } from '../domain.service';
+import { requireEnum, requireFields } from '../payload';
+
+const requestStatuses = ['OPEN', 'WAITING_FOR_FOUNDER', 'WAITING_FOR_INVESTOR', 'RESOLVED', 'CLOSED'] as const;
 
 @UseGuards(JwtAuthGuard)
 @Controller()
@@ -11,8 +14,19 @@ export class RequestsController {
 
   @Post('companies/:companyId/requests')
   async create(@CurrentUser() user: AuthenticatedUser, @Param('companyId') companyId: string, @Body() body: any) {
+    await this.domain.assertCompanyAccess(user, companyId, 'read');
+    requireFields(body, ['body']);
     const organizationId = body.organizationId ?? (await this.domain.getPrimaryOrganizationId(user.id));
-    return this.prisma.informationRequest.create({ data: { companyId, organizationId, title: body.title, body: body.body, status: 'WAITING_FOR_FOUNDER' } });
+    const request = await this.prisma.informationRequest.create({ data: { companyId, organizationId, title: body.title ?? 'Investor information request', body: body.body, status: 'WAITING_FOR_FOUNDER' } });
+    const members = await this.prisma.companyMember.findMany({ where: { companyId, userId: { not: null } }, select: { userId: true } });
+    await this.prisma.notification.createMany({
+      data: members.map((member) => ({
+        userId: member.userId as string,
+        title: 'New investor information request',
+        body: request.title
+      }))
+    });
+    return request;
   }
 
   @Get('requests')
@@ -26,22 +40,28 @@ export class RequestsController {
   }
 
   @Get('requests/:requestId')
-  get(@Param('requestId') requestId: string) {
-    return this.prisma.informationRequest.findUniqueOrThrow({ where: { id: requestId }, include: { company: true, responses: true } });
+  get(@CurrentUser() user: AuthenticatedUser, @Param('requestId') requestId: string) {
+    return this.domain.assertRequestAccess(user, requestId);
   }
 
   @Post('requests/:requestId/responses')
-  response(@Param('requestId') requestId: string, @Body() body: any) {
-    return this.prisma.informationRequestResponse.create({ data: { requestId, body: body.body } });
+  async response(@CurrentUser() user: AuthenticatedUser, @Param('requestId') requestId: string, @Body() body: any) {
+    await this.domain.assertRequestAccess(user, requestId);
+    requireFields(body, ['body']);
+    const response = await this.prisma.informationRequestResponse.create({ data: { requestId, body: body.body } });
+    await this.prisma.informationRequest.update({ where: { id: requestId }, data: { status: user.roles.includes('FOUNDER') ? 'WAITING_FOR_INVESTOR' : 'WAITING_FOR_FOUNDER' } });
+    return response;
   }
 
   @Patch('requests/:requestId/status')
-  status(@Param('requestId') requestId: string, @Body() body: any) {
-    return this.prisma.informationRequest.update({ where: { id: requestId }, data: { status: body.status } });
+  async status(@CurrentUser() user: AuthenticatedUser, @Param('requestId') requestId: string, @Body() body: any) {
+    await this.domain.assertRequestAccess(user, requestId);
+    return this.prisma.informationRequest.update({ where: { id: requestId }, data: { status: requireEnum(body.status, requestStatuses, 'Request status') } });
   }
 
   @Post('requests/:requestId/documents')
-  attach(@Param('requestId') requestId: string) {
+  async attach(@CurrentUser() user: AuthenticatedUser, @Param('requestId') requestId: string) {
+    await this.domain.assertRequestAccess(user, requestId);
     return { success: true, requestId };
   }
 }

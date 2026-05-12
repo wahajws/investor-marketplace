@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { HealthController } from './health.controller';
 import { RedisHealthService } from './redis-health.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('HealthController', () => {
   it('returns API health', async () => {
@@ -15,6 +16,10 @@ describe('HealthController', () => {
         {
           provide: RedisHealthService,
           useValue: { ping: jest.fn() }
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn((_key: string, fallback?: string) => fallback) }
         }
       ]
     }).compile();
