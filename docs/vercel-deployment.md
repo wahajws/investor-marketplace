@@ -17,7 +17,7 @@ Import this GitHub repository into Vercel and use these settings:
 
 If the Vercel Root Directory is the repository root:
 
-- Build Command: `cd apps/web && npm run build`
+- Build Command: `if [ -d apps/web ]; then cd apps/web; fi; npm run build`
 - Output Directory: `apps/web/dist`
 
 If the Vercel Root Directory is `apps/web`:
@@ -25,7 +25,7 @@ If the Vercel Root Directory is `apps/web`:
 - Build Command: `npm run build`
 - Output Directory: `dist`
 
-The repository includes both a root `vercel.json` and an `apps/web/vercel.json`, so either setup can work. If Vercel shows `No workspaces found: --workspace=apps/web`, the project Root Directory is already `apps/web`; use the second set of commands above.
+The repository includes both a root `vercel.json` and an `apps/web/vercel.json`, so either setup can work. If Vercel shows `No workspaces found: --workspace=apps/web`, the project Root Directory is already `apps/web`; use the second set of commands above. If Vercel shows `cd: apps/web: No such file or directory`, the project Root Directory is also already `apps/web`; use `npm run build`.
 
 Important: do not press **Redeploy** on an old failed deployment. Vercel redeploys the exact same old commit, so it will continue using the old build command. Create a new deployment from the latest `main` commit instead. The fixed commits are after `1131621`; any deployment cloning `1131621` is using stale code.
 
