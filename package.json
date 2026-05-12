@@ -15,7 +15,7 @@
     "test": "npm run test -w apps/api && npm run test -w apps/web",
     "lint": "npm run lint -w apps/api && npm run lint -w apps/web",
     "prod:check": "npm run lint && npm run test && npm run build && npm audit --omit=dev",
-    "vercel:build": "npm run build -w apps/web",
+    "vercel:build": "cd apps/web && npm run build",
     "db:deploy": "npm run prisma:deploy -w apps/api && npm run prisma:generate -w apps/api",
     "seed": "npm run prisma:seed -w apps/api"
   },
