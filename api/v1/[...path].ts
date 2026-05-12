@@ -2,8 +2,8 @@ import 'reflect-metadata';
 import express from 'express';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../apps/api/src/app.module';
-import { configureApp } from '../apps/api/src/configure-app';
+import { AppModule } from '../../apps/api/src/app.module';
+import { configureApp } from '../../apps/api/src/configure-app';
 
 let server: express.Express | null = null;
 

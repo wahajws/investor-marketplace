@@ -54,7 +54,8 @@ export class HealthController {
 
   @Get('storage')
   async getStorageHealth(): Promise<HealthResponse> {
-    const storagePath = this.config.get<string>('STORAGE_PATH', join(process.cwd(), 'storage'));
+    const defaultStoragePath = process.env.VERCEL ? '/tmp/vc-platform-storage' : join(process.cwd(), 'storage');
+    const storagePath = this.config.get<string>('STORAGE_PATH', defaultStoragePath);
     await mkdir(storagePath, { recursive: true });
     await access(storagePath);
     const probe = join(storagePath, `.health-${Date.now()}.txt`);

@@ -12,7 +12,8 @@ import { DomainService } from '../domain.service';
 import { LlmService } from '../llm.service';
 import { pickFields, requireEnum } from '../payload';
 
-const uploadDir = process.env.STORAGE_PATH ? join(process.env.STORAGE_PATH, 'uploads') : join(process.cwd(), 'storage', 'uploads');
+const defaultStoragePath = process.env.VERCEL ? '/tmp/vc-platform-storage' : join(process.cwd(), 'storage');
+const uploadDir = join(process.env.STORAGE_PATH ?? defaultStoragePath, 'uploads');
 if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
 const allowedMimeTypes = new Set([
   'application/pdf',
