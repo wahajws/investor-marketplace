@@ -24,7 +24,7 @@ export function clearSession() {
 
 export async function refreshSession() {
   const refreshToken = getRefreshToken();
-  if (!refreshToken) {
+  if (!refreshToken || !env.apiBaseUrl) {
     return null;
   }
 

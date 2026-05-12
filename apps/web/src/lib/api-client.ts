@@ -25,6 +25,17 @@ type RequestOptions = {
   auth?: boolean;
 };
 
+function getApiBaseUrl() {
+  if (!env.apiBaseUrl) {
+    throw new ApiClientError({
+      code: 'API_NOT_CONFIGURED',
+      message: 'Production API URL is not configured. Set VITE_API_BASE_URL in Vercel to your deployed API URL.'
+    });
+  }
+
+  return env.apiBaseUrl;
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   return apiRequest<T>(path, { method: 'GET' });
 }
@@ -47,7 +58,7 @@ export async function apiDelete<T>(path: string): Promise<T> {
 
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
   const token = getAccessToken();
-  const response = await fetch(`${env.apiBaseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -71,7 +82,7 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const token = getAccessToken();
-  const response = await fetch(`${env.apiBaseUrl}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: options.method ?? 'GET',
     headers: {
       Accept: 'application/json',
