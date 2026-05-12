@@ -2,7 +2,12 @@ function getApiBaseUrl() {
   const configuredUrl = import.meta.env.VITE_API_BASE_URL;
 
   if (configuredUrl) {
-    return configuredUrl.replace(/\/$/, '');
+    const normalizedUrl = configuredUrl.replace(/\/$/, '');
+    const isLoopbackUrl = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::|\/|$)/i.test(normalizedUrl);
+
+    if (import.meta.env.DEV || !isLoopbackUrl) {
+      return normalizedUrl;
+    }
   }
 
   if (import.meta.env.DEV) {
