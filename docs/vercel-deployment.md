@@ -27,6 +27,8 @@ If the Vercel Root Directory is `apps/web`:
 
 The repository includes both a root `vercel.json` and an `apps/web/vercel.json`, so either setup can work. If Vercel shows `No workspaces found: --workspace=apps/web`, the project Root Directory is already `apps/web`; use the second set of commands above.
 
+Important: do not press **Redeploy** on an old failed deployment. Vercel redeploys the exact same old commit, so it will continue using the old build command. Create a new deployment from the latest `main` commit instead. The fixed commits are after `1131621`; any deployment cloning `1131621` is using stale code.
+
 ## Vercel Environment Variables
 
 Set only frontend-safe variables in Vercel:
