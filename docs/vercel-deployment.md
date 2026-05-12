@@ -14,10 +14,18 @@ Import this GitHub repository into Vercel and use these settings:
 
 - Framework Preset: `Vite`
 - Install Command: `npm install`
+
+If the Vercel Root Directory is the repository root:
+
 - Build Command: `npm run build -w apps/web`
 - Output Directory: `apps/web/dist`
 
-The root `vercel.json` already contains these values and an SPA rewrite to `index.html`.
+If the Vercel Root Directory is `apps/web`:
+
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+The repository includes both a root `vercel.json` and an `apps/web/vercel.json`, so either setup can work. If Vercel shows `No workspaces found: --workspace=apps/web`, the project Root Directory is already `apps/web`; use the second set of commands above.
 
 ## Vercel Environment Variables
 
