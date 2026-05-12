@@ -1,0 +1,602 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum UserRoleName {
+  ADMIN
+  FOUNDER
+  INVESTOR
+}
+
+enum OrganizationStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum OrganizationType {
+  VC
+  ANGEL
+  FAMILY_OFFICE
+  CVC
+  ACCELERATOR
+  GOVERNMENT_LINKED
+  OTHER
+}
+
+enum OrganizationMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum CompanyStatus {
+  DRAFT
+  SUBMITTED
+  ADMIN_REVIEW
+  APPROVED
+  REJECTED
+  HIDDEN
+  ARCHIVED
+}
+
+enum DocumentStatus {
+  UPLOADED
+  QUEUED
+  PROCESSING
+  EXTRACTED
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum Visibility {
+  PRIVATE
+  INVESTORS
+  PUBLIC
+}
+
+enum ClaimStatus {
+  VERIFIED
+  PARTIALLY_VERIFIED
+  UNSUPPORTED
+  CONTRADICTED
+  NEEDS_HUMAN_REVIEW
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DealStage {
+  NEW
+  SCREENING
+  INTERESTED
+  DILIGENCE
+  PARTNER_REVIEW
+  INVESTMENT_COMMITTEE
+  TERM_SHEET
+  INVESTED
+  REJECTED
+  ARCHIVED
+}
+
+enum RequestStatus {
+  OPEN
+  WAITING_FOR_FOUNDER
+  WAITING_FOR_INVESTOR
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String?
+  status       UserStatus @default(PENDING)
+  emailVerifiedAt DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  roles UserRole[]
+  refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  founderProfile FounderProfile?
+  investorProfile InvestorProfile?
+  organizationMemberships OrganizationMember[]
+  companyMemberships CompanyMember[]
+  auditLogs AuditLog[]
+  notifications Notification[]
+}
+
+model Role {
+  id        String       @id @default(cuid())
+  name      UserRoleName @unique
+  createdAt DateTime     @default(now())
+
+  users UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Organization {
+  id          String             @id @default(cuid())
+  name        String
+  type        OrganizationType   @default(VC)
+  status      OrganizationStatus @default(PENDING)
+  country     String?
+  city        String?
+  website     String?
+  description String?            @db.Text
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  members OrganizationMember[]
+  investorProfiles InvestorProfile[]
+  preferences InvestorPreference[]
+  pipelineItems DealPipelineItem[]
+  matches Match[]
+}
+
+model OrganizationMember {
+  id             String                 @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrganizationMemberRole @default(MEMBER)
+  createdAt      DateTime               @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+}
+
+model FounderProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  fullName    String?
+  phone       String?
+  country     String?
+  city        String?
+  linkedinUrl String?
+  role        String?
+  biography   String?  @db.Text
+  experience  String?  @db.Text
+  education   String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model InvestorProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  organizationId String?
+  fullName       String?
+  phone          String?
+  country        String?
+  city           String?
+  linkedinUrl    String?
+  title          String?
+  bio            String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  preferences  InvestorPreference?
+}
+
+model InvestorPreference {
+  id                 String   @id @default(cuid())
+  investorProfileId  String   @unique
+  organizationId     String?
+  thesis             String?  @db.Text
+  sectors            Json?
+  stages             Json?
+  geographies        Json?
+  excludedSectors    Json?
+  minTicketSize      Decimal? @db.Decimal(18, 2)
+  maxTicketSize      Decimal? @db.Decimal(18, 2)
+  revenueRequirement Decimal? @db.Decimal(18, 2)
+  riskPreference     String?
+  leadPreference     String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  investorProfile InvestorProfile @relation(fields: [investorProfileId], references: [id], onDelete: Cascade)
+  organization    Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+}
+
+model Company {
+  id                  String        @id @default(cuid())
+  name                String
+  registrationNumber  String?
+  country             String?
+  city                String?
+  sector              String?
+  businessModel       String?
+  stage               String?
+  status              CompanyStatus @default(DRAFT)
+  visibility          Visibility    @default(PRIVATE)
+  website             String?
+  description         String?       @db.Text
+  problem             String?       @db.Text
+  solution            String?       @db.Text
+  targetCustomers     String?       @db.Text
+  submittedAt         DateTime?
+  reviewedAt          DateTime?
+  reviewNote          String?       @db.Text
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  members CompanyMember[]
+  metrics CompanyMetric?
+  fundraising FundraisingRound?
+  documents Document[]
+  extractions DocumentExtraction[]
+  claims Claim[]
+  redFlags RedFlag[]
+  valuations ValuationRun[]
+  readinessScores ReadinessScore[]
+  matches Match[]
+  pipelineItems DealPipelineItem[]
+  memos InvestmentMemo[]
+  requests InformationRequest[]
+}
+
+model CompanyMember {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String?
+  name      String
+  role      String?
+  email     String?
+  ownership Decimal? @db.Decimal(6, 2)
+  bio       String?  @db.Text
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model CompanyMetric {
+  id                    String   @id @default(cuid())
+  companyId             String   @unique
+  customerCount          Int?
+  payingCustomerCount    Int?
+  monthlyActiveUsers     Int?
+  monthlyRecurringRevenue Decimal? @db.Decimal(18, 2)
+  annualRecurringRevenue  Decimal? @db.Decimal(18, 2)
+  annualRevenue           Decimal? @db.Decimal(18, 2)
+  revenueGrowthRate       Decimal? @db.Decimal(8, 2)
+  churnRate               Decimal? @db.Decimal(8, 2)
+  grossMargin             Decimal? @db.Decimal(8, 2)
+  burnRate                Decimal? @db.Decimal(18, 2)
+  runwayMonths            Int?
+  currency                String?  @default("MYR")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model FundraisingRound {
+  id               String   @id @default(cuid())
+  companyId        String   @unique
+  amountRaising    Decimal? @db.Decimal(18, 2)
+  claimedValuation Decimal? @db.Decimal(18, 2)
+  currency         String?  @default("MYR")
+  instrument       String?
+  previousFunding  Decimal? @db.Decimal(18, 2)
+  useOfFunds       String?  @db.Text
+  currentInvestors String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id          String         @id @default(cuid())
+  companyId   String
+  category    String
+  filename    String
+  mimeType    String?
+  sizeBytes   Int?
+  storagePath String
+  visibility  Visibility     @default(PRIVATE)
+  status      DocumentStatus @default(UPLOADED)
+  description String?        @db.Text
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  extractions DocumentExtraction[]
+  accessGrants DocumentAccessGrant[]
+}
+
+model DocumentAccessGrant {
+  id             String   @id @default(cuid())
+  documentId     String
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model DocumentExtraction {
+  id          String   @id @default(cuid())
+  companyId   String
+  documentId  String?
+  status      String   @default("COMPLETE")
+  rawText      String?  @db.LongText
+  resultJson   Json?
+  confidence   Decimal? @db.Decimal(5, 2)
+  createdAt    DateTime @default(now())
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  document Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+}
+
+model Claim {
+  id                 String      @id @default(cuid())
+  companyId          String
+  claimType          String
+  claimText          String      @db.Text
+  claimedValue       Decimal?    @db.Decimal(18, 2)
+  currency           String?
+  verificationStatus ClaimStatus @default(NEEDS_HUMAN_REVIEW)
+  confidenceScore    Decimal?    @db.Decimal(5, 2)
+  severity           Severity    @default(MEDIUM)
+  explanation        String?     @db.Text
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model RedFlag {
+  id          String   @id @default(cuid())
+  companyId   String
+  category    String
+  severity    Severity @default(MEDIUM)
+  explanation String   @db.Text
+  source      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model ValuationRun {
+  id                   String   @id @default(cuid())
+  companyId            String
+  method               String
+  lowerBound           Decimal? @db.Decimal(18, 2)
+  upperBound           Decimal? @db.Decimal(18, 2)
+  claimedValuation     Decimal? @db.Decimal(18, 2)
+  currency             String?  @default("MYR")
+  confidenceLevel      String?
+  reasonablenessStatus String?
+  inputsJson           Json?
+  assumptionsJson      Json?
+  explanation          String?  @db.Text
+  createdAt            DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model ReadinessScore {
+  id             String   @id @default(cuid())
+  companyId      String
+  overallScore   Int
+  label          String
+  categoryScores Json?
+  strengths      Json?
+  weaknesses     Json?
+  recommendations Json?
+  createdAt      DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model Match {
+  id             String   @id @default(cuid())
+  companyId      String
+  organizationId String
+  totalScore     Int
+  deterministicScore Int
+  llmScore       Int     @default(0)
+  fitLevel       String
+  factorsJson    Json?
+  explanation    String? @db.Text
+  status         String  @default("NEW")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, organizationId])
+}
+
+model DealPipelineItem {
+  id             String    @id @default(cuid())
+  companyId      String
+  organizationId String
+  ownerUserId    String?
+  stage          DealStage @default(NEW)
+  rating         Int?
+  nextActionAt   DateTime?
+  archivedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  notes        DealNote[]
+
+  @@unique([companyId, organizationId])
+}
+
+model DealNote {
+  id             String   @id @default(cuid())
+  pipelineItemId String
+  body           String   @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  pipelineItem DealPipelineItem @relation(fields: [pipelineItemId], references: [id], onDelete: Cascade)
+}
+
+model InformationRequest {
+  id             String        @id @default(cuid())
+  companyId      String
+  organizationId String?
+  title          String
+  body           String        @db.Text
+  status         RequestStatus @default(OPEN)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  responses InformationRequestResponse[]
+}
+
+model InformationRequestResponse {
+  id        String   @id @default(cuid())
+  requestId String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  request InformationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model InvestmentMemo {
+  id        String   @id @default(cuid())
+  companyId String
+  title     String
+  content   String   @db.LongText
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PlatformSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  valueJson Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model LlmRun {
+  id         String   @id @default(cuid())
+  userId     String?
+  companyId  String?
+  documentId String?
+  task       String
+  model      String
+  status     String   @default("COMPLETE")
+  promptJson Json?
+  inputJson  Json?
+  outputJson Json?
+  errorText  String?  @db.LongText
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([documentId])
+}
