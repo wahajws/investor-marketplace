@@ -17,7 +17,7 @@ Import this GitHub repository into Vercel and use these settings:
 
 If the Vercel Root Directory is the repository root:
 
-- Build Command: `if [ -d apps/web ]; then cd apps/web; fi; npm run build`
+- Build Command: `if [ -d apps/web ]; then npm --prefix apps/web run build; else npm run build; fi`
 - Output Directory: `apps/web/dist`
 
 If the Vercel Root Directory is `apps/web`:
