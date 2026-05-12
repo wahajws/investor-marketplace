@@ -2,7 +2,8 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
-  BadRequestException
+  BadRequestException,
+  ServiceUnavailableException
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -31,6 +32,7 @@ export class AuthService {
   ) {}
 
   async register(input: { email: string; password: string; role: 'FOUNDER' | 'INVESTOR' }) {
+    this.assertDatabaseConfigured();
     const email = input.email.toLowerCase();
     const existing = await this.users.findByEmail(email);
 
@@ -83,6 +85,7 @@ export class AuthService {
   }
 
   async login(input: { email: string; password: string }) {
+    this.assertDatabaseConfigured();
     const user = await this.users.findByEmail(input.email);
 
     if (!user || !(await this.passwords.verify(input.password, user.passwordHash))) {
@@ -102,6 +105,7 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
+    this.assertDatabaseConfigured();
     const tokenHash = this.hashToken(refreshToken);
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
@@ -130,6 +134,7 @@ export class AuthService {
   }
 
   async logout(refreshToken: string) {
+    this.assertDatabaseConfigured();
     await this.prisma.refreshToken.updateMany({
       where: { tokenHash: this.hashToken(refreshToken), revokedAt: null },
       data: { revokedAt: new Date() }
@@ -139,10 +144,12 @@ export class AuthService {
   }
 
   async getMe(userId: string) {
+    this.assertDatabaseConfigured();
     return this.users.getCurrentUser(userId);
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    this.assertDatabaseConfigured();
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const valid = await this.passwords.verify(currentPassword, user.passwordHash);
 
@@ -164,6 +171,7 @@ export class AuthService {
   }
 
   async requestPasswordReset(email: string) {
+    this.assertDatabaseConfigured();
     const user = await this.users.findByEmail(email);
     if (!user) {
       return { success: true };
@@ -190,6 +198,7 @@ export class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string) {
+    this.assertDatabaseConfigured();
     const tokenHash = this.hashToken(token);
     const storedToken = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash }
@@ -216,6 +225,7 @@ export class AuthService {
   }
 
   async verifyEmail(token: string) {
+    this.assertDatabaseConfigured();
     const tokenHash = this.hashToken(token);
     const storedToken = await this.prisma.emailVerificationToken.findUnique({
       where: { tokenHash }
@@ -238,6 +248,7 @@ export class AuthService {
   }
 
   private async issueAuthResponse(user: TokenUser) {
+    this.assertDatabaseConfigured();
     const accessToken = await this.jwt.signAsync(
       {
         sub: user.id,
@@ -289,5 +300,11 @@ export class AuthService {
     const date = new Date();
     date.setDate(date.getDate() + days);
     return date;
+  }
+
+  private assertDatabaseConfigured() {
+    if (!this.config.get<string>('DATABASE_URL')) {
+      throw new ServiceUnavailableException('DATABASE_URL is not configured in Vercel.');
+    }
   }
 }
