@@ -31,13 +31,15 @@ Important: do not press **Redeploy** on an old failed deployment. Vercel redeplo
 
 ## Vercel Environment Variables
 
-Set only frontend-safe variables in Vercel:
+Set only frontend-safe variables in Vercel before deploying. Vite bakes `VITE_` values into the browser bundle at build time, so add or change these values and then trigger a new deployment:
 
 ```text
 VITE_API_BASE_URL=https://api.your-domain.com/api/v1
 VITE_APP_NAME=VC Intelligence
 VITE_APP_REGION=Malaysia and Southeast Asia
 ```
+
+`VITE_API_BASE_URL` is required for production builds. If it is missing, the frontend will fail fast instead of calling `localhost:4000`, because `localhost` in a deployed browser points to the visitor's computer, not the backend API.
 
 Do not add `DATABASE_URL`, `ALIBABA_API_KEY`, JWT secrets, SMTP credentials, Redis credentials, or storage paths to Vercel unless you later convert the API to a serverless deployment.
 
